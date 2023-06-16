@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
+from tkinter import filedialog
 import csv
 import mysql.connector
 
@@ -69,7 +70,20 @@ class BankAccount:
         return True
 
     def get_transaction_history(self):
-        return self.transaction_history
+        cursor = cnx.cursor()
+        select_query = "SELECT * FROM transition WHERE user_id = %s"
+        cursor.execute(select_query, (self.id,))
+        record = cursor.fetchall()
+        if record is not None:
+            result_list = []
+            column_names = cursor.column_names
+            for row in record:
+                result_dict = {}
+                for i, column_value in enumerate(row):
+                    result_dict[column_names[i]] = column_value
+                result_list.append(result_dict)
+            return result_list
+        return None
     
     @staticmethod
     def get_users(account_number, pin):
@@ -286,16 +300,19 @@ class ATMGUI:
         transaction_history_label.pack(pady=10)
 
         treeview = ttk.Treeview(transaction_history_window)
-        treeview["columns"] = ("Transaction")
+        treeview["columns"] = ("id",'amount','type')
 
-        treeview.column("#0", width=100, minwidth=100, stretch=tk.NO)
-        treeview.column("Transaction", width=200, minwidth=200, stretch=tk.NO)
+        treeview.column("id", width=50, minwidth=50, stretch=tk.NO)
+        treeview.column("amount", width=80, minwidth=80, stretch=tk.NO)
+        treeview.column("type", width=100, minwidth=100, stretch=tk.NO)        
 
-        treeview.heading("#0", text="No.", anchor=tk.W)
-        treeview.heading("Transaction", text="Transaction", anchor=tk.W)
+        treeview.heading("id", text="id.", anchor=tk.W)
+        treeview.heading("amount", text="amount", anchor=tk.W)
+        treeview.heading("type", text="type", anchor=tk.W)
+        
 
         for index, transaction in enumerate(self.current_user.get_transaction_history()):
-            treeview.insert(parent="", index=index, iid=index, values=(index + 1, transaction))
+            treeview.insert(parent="", index=index, iid=index, values=(transaction['id'], transaction['amount'],transaction['type']))
 
         treeview.pack()
 
@@ -304,7 +321,7 @@ class ATMGUI:
         export_button.pack(pady=10)
 
     def export_transaction_history_csv(self, transaction_history_window):
-        file_path = tk.filedialog.asksaveasfilename(defaultextension=".csv",
+        file_path = filedialog.asksaveasfilename(defaultextension=".csv",
                                                     filetypes=[("CSV Files", "*.csv")])
         if file_path:
             with open(file_path, mode='w', newline='') as file:
